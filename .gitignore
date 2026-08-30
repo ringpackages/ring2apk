@@ -1,0 +1,5 @@
+**/build/
+/ring2apk
+**/cpp/ring/src
+**/cpp/ring/include
+.ring2apk.hash

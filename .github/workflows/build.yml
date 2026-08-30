@@ -1,0 +1,167 @@
+name: Build Ring2APK
+
+on:
+  # push:
+  #   branches: [master]
+  # pull_request:
+  #   branches: [master]
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: linux-amd64
+          - os: ubuntu-24.04-arm
+            name: linux-arm64
+          - os: macos-15-intel
+            name: macos-amd64
+          - os: macos-latest
+            name: macos-arm64
+          - os: windows-latest
+            name: windows-amd64
+            arch: amd64
+          - os: windows-latest
+            name: windows-i386
+            arch: i386
+          - os: windows-11-arm
+            name: windows-arm64
+            arch: arm64
+          - os: ubuntu-latest
+            name: freebsd-amd64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Clone Ring Source
+        if: matrix.name != 'freebsd-amd64'
+        uses: actions/checkout@v4
+        with:
+          repository: ring-lang/ring
+          path: ring
+          fetch-depth: 1
+          ref: v1.27
+
+      - name: Set up MSVC Developer Command Prompt
+        if: startsWith(matrix.name, 'windows')
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ matrix.arch == 'i386' && 'x86' || matrix.arch || 'x64' }}
+
+      - name: Build Ring Language (Unix)
+        if: matrix.name != 'freebsd-amd64' && !startsWith(matrix.name, 'windows')
+        run: |
+          cd ring/language
+          cmake . -DCMAKE_BUILD_TYPE=Release
+          make -j$(nproc 2>/dev/null || sysctl -n hw.ncpu)
+          cmake --install .
+
+      - name: Build Ring Language (Windows)
+        if: startsWith(matrix.name, 'windows') && matrix.name != 'windows-arm64'
+        shell: cmd
+        run: |
+          cd ring/language
+          cmake . -A ${{ matrix.arch == 'i386' && 'Win32' || 'x64' }}
+          cmake --build . --config Release --parallel
+          cmake --install .
+
+      - name: Build Ring Language (Windows ARM64)
+        if: matrix.name == 'windows-arm64'
+        shell: cmd
+        run: |
+          cd ring/language
+          cmake . -A ARM64
+          cmake --build . --config Release --parallel
+          cmake --install .
+
+      - name: Add ring/bin to PATH (Unix)
+        if: matrix.name != 'freebsd-amd64' && !startsWith(matrix.name, 'windows')
+        run: |
+          echo "$GITHUB_WORKSPACE/ring/bin" >> $GITHUB_PATH
+          echo "LD_LIBRARY_PATH=$GITHUB_WORKSPACE/ring/lib" >> $GITHUB_ENV
+          echo "DYLD_LIBRARY_PATH=$GITHUB_WORKSPACE/ring/lib" >> $GITHUB_ENV
+
+      - name: Add ring/bin to PATH (Windows)
+        if: startsWith(matrix.name, 'windows')
+        shell: pwsh
+        run: |
+          echo "$((Get-Location).Path)\ring\bin" >> $env:GITHUB_PATH
+
+      - name: Clone Ring2EXE Plus
+        if: matrix.name != 'freebsd-amd64'
+        uses: actions/checkout@v4
+        with:
+          repository: ysdragon/ring2exe-plus
+          path: ring2exe-plus
+          fetch-depth: 1
+
+      - name: Build ring2apk (Unix)
+        if: matrix.name != 'freebsd-amd64' && !startsWith(matrix.name, 'windows')
+        run: ring ring2exe-plus/tools/ring2exe/ring2exe.ring ring2apk.ring -static -release -output=ring2apk-${{ matrix.name }}
+
+      - name: Build ring2apk (Windows)
+        if: startsWith(matrix.name, 'windows')
+        shell: pwsh
+        run: |
+          ring ring2exe-plus\tools\ring2exe\ring2exe.ring ring2apk.ring -static -release -cc=cl -output=ring2apk-${{ matrix.name }}
+
+      - name: Build in FreeBSD VM
+        if: matrix.name == 'freebsd-amd64'
+        uses: vmactions/freebsd-vm@v1
+        with:
+          release: "15.1"
+          arch: amd64
+          usesh: true
+          sync: rsync
+          mem: 4096
+          prepare: |
+            pkg update -f
+            pkg install -y cmake git ninja
+          run: |
+            git clone --branch v1.27 --depth 1 https://github.com/ring-lang/ring.git ring
+            cd ring/language
+            cmake . -DCMAKE_BUILD_TYPE=Release -GNinja
+            ninja install
+            cd ../..
+            git clone --depth 1 https://github.com/ysdragon/ring2exe-plus.git ring2exe-plus
+            export PATH=$PWD/ring/bin:$PATH
+            export LD_LIBRARY_PATH=$PWD/ring/lib:${LD_LIBRARY_PATH:-}
+            ring ring2exe-plus/tools/ring2exe/ring2exe.ring ring2apk.ring -static -release -output=ring2apk-freebsd-amd64
+            strip ring2apk-freebsd-amd64
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}-ring2apk
+          path: ring2apk-${{ matrix.name }}${{ startsWith(matrix.name, 'windows') && '.exe' || '' }}
+          if-no-files-found: error
+
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [build]
+    if: github.event_name == 'release'
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Upload assets to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*-ring2apk/*
