@@ -17,14 +17,13 @@ Build Android APKs from [Ring](https://ring-lang.github.io) applications without
 
 ## Requirements
 
-| Tool | Version | Notes |
-|---|---|---|
-| Ring | 1.27+ | `RING` env or `ring` on `PATH` for bytecode embedding |
-| Android SDK | build-tools, `platforms;android-34`, `platform-tools` | `ANDROID_SDK_ROOT` / `ANDROID_HOME` |
-| Android NDK | r27+ | `ANDROID_NDK_ROOT` / `NDK_HOME` or `<sdk>/ndk/*` (latest picked) |
-| JDK | 17+ | `JAVA_HOME` for `javac`/`keytool`, `d8` needs `android.jar` |
-| CMake + Ninja | 3.22+ | SDK `cmake` package or system `cmake` |
-| zip | — | Linux/macOS `zip` on `PATH` |
+**Ring 1.27+** — the `RING` environment variable pointing to your Ring installation is **strictly required**. Falls back to `ring` on `PATH`.
+
+- **Android SDK** — `build-tools`, at least one `platforms;android-*` (default config uses 34, override in `ring2apk.ring`), `platform-tools` (`ANDROID_SDK_ROOT` / `ANDROID_HOME`)
+- **Android NDK** (`ANDROID_NDK_ROOT` / `NDK_HOME` or `<sdk>/ndk/*`, latest picked)
+- **JDK** (`JAVA_HOME` for `javac`/`keytool`, `d8` needs `android.jar`)
+- **CMake + Ninja** (SDK `cmake` package or system `cmake`)
+- **zip** — Linux/macOS on `PATH`
 
 ## Installation
 
