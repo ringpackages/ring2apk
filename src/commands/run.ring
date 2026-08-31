@@ -138,9 +138,8 @@ func installApk cAdb, cApkPath, cDevice
 
     cCmd += ' install -r "' + cApkPath + '"'
 
-    logCommand(cCmd)
     cErrFile = tempName() + ".txt"
-    nResult = system(cCmd + ' 2> "' + cErrFile + '"')
+    nResult = shellExec(cCmd + ' 2> "' + cErrFile + '"')
     if nResult != 0
         cErr = ""
         if fExists(cErrFile)
@@ -284,7 +283,7 @@ func followLogcat cAdb, cPackage, cDevice
         ok
     ok
 
-    system(cCmd)
+    shellExec(cCmd)
 
 # Uninstall app from device
 func uninstallApp cAdb, cPackage, cDevice
