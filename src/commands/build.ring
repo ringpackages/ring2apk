@@ -705,8 +705,16 @@ func addFilesToApk cApkPath, cSourceDir
 
     nResult = 0
     if isWindows()
-        # Use PowerShell's Compress-Archive or 7z
-        nResult = shellSilent('powershell -Command "Compress-Archive -Path * -Update -DestinationPath ' + cAbsApk + '"')
+        # Prefer zip (correct / separators) if available (Git for Windows / Scoop)
+        if shellSilent("where zip > NUL 2>&1") = 0
+            nResult = shellSilent('zip -r "' + cAbsApk + '" .')
+        else
+            # PowerShell 5.1: must quote, must handle .zip auto-append, and
+            # 5.1 writes \ separators (Android rejects) — fixed in pwsh 7 / .NET Core
+            cQ = char(39)
+            cTmpZip = cAbsApk + ".zip"
+            nResult = shellSilent('powershell -Command "Compress-Archive -Path * -Force -DestinationPath ' + cQ + cTmpZip + cQ + '; Move-Item -Force ' + cQ + cTmpZip + cQ + ' ' + cQ + cAbsApk + cQ + '"')
+        ok
     else
         # Use zip command (native libraries stay compressed: they are
         # extracted at install time, so no 16 KB zip-entry alignment is
