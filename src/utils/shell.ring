@@ -8,14 +8,84 @@
 
 # Execute a command and return exit code
 func shellExec cCommand
+    if isWindows()
+        if left(cCommand, 1) = '"' 
+            nEnd = 0
+            for i = 2 to len(cCommand)
+                if cCommand[i] = '"'
+                    nEnd = i
+                    exit
+                ok
+            next
+            if nEnd > 0
+                cExe = substr(cCommand, 2, nEnd - 2)
+                if substr(cExe, " ") = 0
+                    cCommand = cExe + substr(cCommand, nEnd + 1)
+                ok
+            ok
+        ok
+        # Convert / to \ only inside "..." quoted file paths (keeps reg query /s /v intact)
+        cCommand = winPaths(cCommand)
+        # cmd /c strips first and last quote if command starts with " and has spaces -> wrap entire command
+        if left(cCommand, 1) = '"'
+            nEnd = 0
+            for i = 2 to len(cCommand)
+                if cCommand[i] = '"'
+                    nEnd = i
+                    exit
+                ok
+            next
+            if nEnd > 0
+                cExe2 = substr(cCommand, 2, nEnd - 2)
+                if substr(cExe2, " ") > 0
+                    cCommand = '"' + cCommand + '"'
+                ok
+            ok
+        ok
+    ok
     logCommand(cCommand)
     nResult = system(cCommand)
     return nResult
 
 # Execute a command and return output as string
 func shellOutput cCommand
+    if isWindows()
+        if left(cCommand, 1) = '"'
+            nEnd = 0
+            for i = 2 to len(cCommand)
+                if cCommand[i] = '"'
+                    nEnd = i
+                    exit
+                ok
+            next
+            if nEnd > 0
+                cExe = substr(cCommand, 2, nEnd - 2)
+                if substr(cExe, " ") = 0
+                    cCommand = cExe + substr(cCommand, nEnd + 1)
+                ok
+            ok
+        ok
+        cCommand = winPaths(cCommand)
+    ok
     cTempFile = tempName() + ".txt"
-    system(cCommand + " > " + cTempFile + " 2>&1")
+    cFull = cCommand + " > " + cTempFile + " 2>&1"
+    # wrap full command if quoted exe with spaces
+    if left(cFull, 1) = '"'
+        nEnd = 0
+        for i = 2 to len(cFull)
+            if cFull[i] = '"'
+                nEnd = i
+                exit
+            ok
+        next
+        if nEnd > 0
+            cExe2 = substr(cFull, 2, nEnd - 2)
+            if substr(cExe2, " ") > 0
+                cFull = '"' + cFull + '"'
+            ok
+        ok
+    ok
+    system(cFull)
     cOutput = ""
     if fExists(cTempFile)
         cOutput = read(cTempFile)
@@ -26,7 +96,39 @@ func shellOutput cCommand
 # Execute a command silently (suppress output)
 func shellSilent cCommand
     if isWindows()
-        return system(cCommand + " > NUL 2>&1")
+        if left(cCommand, 1) = '"'
+            nEnd = 0
+            for i = 2 to len(cCommand)
+                if cCommand[i] = '"'
+                    nEnd = i
+                    exit
+                ok
+            next
+            if nEnd > 0
+                cExe = substr(cCommand, 2, nEnd - 2)
+                if substr(cExe, " ") = 0
+                    cCommand = cExe + substr(cCommand, nEnd + 1)
+                ok
+            ok
+        ok
+        cCommand = winPaths(cCommand)
+        cFull = cCommand + " > NUL 2>&1"
+        if left(cFull, 1) = '"'
+            nEnd = 0
+            for i = 2 to len(cFull)
+                if cFull[i] = '"'
+                    nEnd = i
+                    exit
+                ok
+            next
+            if nEnd > 0
+                cExe2 = substr(cFull, 2, nEnd - 2)
+                if substr(cExe2, " ") > 0
+                    cFull = '"' + cFull + '"'
+                ok
+            ok
+        ok
+        return system(cFull)
     else
         return system(cCommand + " > /dev/null 2>&1")
     ok
@@ -58,6 +160,26 @@ func joinPath aComponents
         ok
     next
     return cResult
+
+
+# Convert / to \ only inside double-quoted segments (so reg query /s stays)
+func winPaths cCmd
+    cOut = ""
+    lInQuote = false
+    for i = 1 to len(cCmd)
+        c = cCmd[i]
+        if c = '"'
+            lInQuote = not lInQuote
+            cOut += c
+        else
+            if lInQuote and c = "/"
+                cOut += char(92)
+            else
+                cOut += c
+            ok
+        ok
+    next
+    return cOut
 
 # Create directory
 func mkDir cFolder

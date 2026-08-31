@@ -296,8 +296,7 @@ func embedRingCode oBuild
     chdir(cStage)
     cLogFile = tempName() + ".txt"
     cCmd = '"' + cRing + '" -go -norun "' + cEntry + '" > "' + cLogFile + '" 2>&1'
-    logCommand(cCmd)
-    nResult = system(cCmd)
+    nResult = shellExec(cCmd)
     chdir(cOldDir)
 
     if nResult != 0
@@ -667,7 +666,7 @@ func createApk oBuild
     copyFile(cBaseApk, cUnalignedApk)
 
     # Use zip to add files (assets, native libraries, ...)
-    if addFilesToApk(cUnalignedApk, cBuildDir + "/apk") != 0
+    if addFilesToApk(cUnalignedApk, cBuildDir + "/apk", oBuild.env.javaHome) != 0
         logError("Failed to add files to APK!")
         return false
     ok
@@ -687,7 +686,7 @@ func createApk oBuild
     return true
 
 # Add files to APK using zip
-func addFilesToApk cApkPath, cSourceDir
+func addFilesToApk cApkPath, cSourceDir, cJavaHome
     # Resolve the APK path against the original working directory:
     # a relative path would be interpreted from inside cSourceDir
     cOldDir = currentDir()
@@ -703,17 +702,29 @@ func addFilesToApk cApkPath, cSourceDir
     # Change to source directory and add files
     chdir(cSourceDir)
 
+    # Absolute source dir
+    cAbsSrc = cSourceDir
+    lSrcAbsolute = left(cAbsSrc, 1) = "/"
+    if isWindows() and subStr(cAbsSrc, ":") > 0
+        lSrcAbsolute = true
+    ok
+    if not lSrcAbsolute
+        cAbsSrc = cOldDir + pathSeparator() + cAbsSrc
+    ok
+
     nResult = 0
     if isWindows()
-        # Prefer zip (correct / separators) if available (Git for Windows / Scoop)
+        # Prefer zip if available (Git for Windows / Scoop)
         if shellSilent("where zip > NUL 2>&1") = 0
             nResult = shellSilent('zip -r "' + cAbsApk + '" .')
         else
-            # PowerShell 5.1: must quote, must handle .zip auto-append, and
-            # 5.1 writes \ separators (Android rejects) — fixed in pwsh 7 / .NET Core
-            cQ = char(39)
-            cTmpZip = cAbsApk + ".zip"
-            nResult = shellSilent('powershell -Command "Compress-Archive -Path * -Force -DestinationPath ' + cQ + cTmpZip + cQ + '; Move-Item -Force ' + cQ + cTmpZip + cQ + ' ' + cQ + cAbsApk + cQ + '"')
+            cJar = cJavaHome + pathSeparator() + "bin" + pathSeparator() + "jar.exe"
+            if not fExists(cJar)
+                logError("jar.exe not found at " + cJar + " (install zip or fix JAVA_HOME)")
+                chdir(cOldDir)
+                return 1
+            ok
+            nResult = shellSilent('"' + cJar + '" uf "' + cAbsApk + '" -C "' + cAbsSrc + '" .')
         ok
     else
         # Use zip command (native libraries stay compressed: they are
@@ -792,7 +803,7 @@ func signApk oBuild
         remove(cKeyFile)
     ok
     if nSignResult != 0
-        logError("APK signing failed!")
+        logError("APK signing failed: " + shellOutput(cCmd))
         return false
     ok
 
@@ -839,7 +850,7 @@ func createDebugKeystore cJavaHome
            '-dname "CN=Android Debug,O=Android,C=US"'
 
     if shellSilent(cCmd) != 0
-        logError("keytool failed to create debug keystore")
+        logError("keytool failed to create debug keystore: " + shellOutput(cCmd))
         return ""
     ok
     return cKeystore
