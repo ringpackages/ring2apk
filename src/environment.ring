@@ -8,36 +8,112 @@
 
 # Detect Android SDK location
 func detectAndroidSdk
-    # Check environment variable first
-    cSdk = sysGet("ANDROID_SDK_ROOT")
-    if len(cSdk) > 0 and dirExists(cSdk)
-        return cSdk
+    # 1) Env vars — ANDROID_HOME (current), ANDROID_SDK_ROOT (deprecated), ANDROID_SDK_HOME (old)
+    for cEnv in ["ANDROID_HOME", "ANDROID_SDK_ROOT", "ANDROID_SDK_HOME"]
+        cSdk = sysGet(cEnv)
+        if len(cSdk) > 0 and dirExists(cSdk)
+            return cSdk
+        ok
+    next
+
+    # 2) Derive from tool on PATH — where adb / where sdkmanager
+    if isWindows()
+        if commandExists("adb")
+            cAdb = trim(shellOutput('where adb 2> NUL'))
+            nNl = substr(cAdb, char(10))
+            if nNl > 0
+                cAdb = left(cAdb, nNl - 1)
+            ok
+            cAdb = trim(cAdb)
+            # adb is at <sdk>\platform-tools\adb.exe -> SDK is two levels up from platform-tools
+            if right(lower(cAdb), len("\platform-tools\adb.exe")) = lower("\platform-tools\adb.exe")
+                cSdk = left(cAdb, len(cAdb) - len("\platform-tools\adb.exe"))
+                if dirExists(cSdk)
+                    return cSdk
+                ok
+            ok
+        ok
+        if commandExists("sdkmanager")
+            cMgr = trim(shellOutput('where sdkmanager 2> NUL'))
+            nNl = substr(cMgr, char(10))
+            if nNl > 0
+                cMgr = left(cMgr, nNl - 1)
+            ok
+            cMgr = trim(cMgr)
+            # sdkmanager at <sdk>\cmdline-tools\latest\bin\sdkmanager.bat -> 4 levels up
+            # or <sdk>\tools\bin\sdkmanager.bat (legacy)
+            if substr(lower(cMgr), "\cmdline-tools\") > 0
+                # Find \cmdline-tools\ and go to parent
+                nPos = substr(lower(cMgr), "\cmdline-tools\")
+                cSdk = left(cMgr, nPos - 1)
+                if dirExists(cSdk)
+                    return cSdk
+                ok
+            but substr(lower(cMgr), "\tools\bin\") > 0
+                nPos = substr(lower(cMgr), "\tools\bin\")
+                cSdk = left(cMgr, nPos - 1)
+                if dirExists(cSdk)
+                    return cSdk
+                ok
+            ok
+        ok
+        # Registry — Android Studio installer writes HKLM\SOFTWARE\Android SDK Tools (some OEMs) + HKCU
+        for cReg in ['reg query "HKLM\SOFTWARE\Android SDK Tools" /v Path 2> NUL', 'reg query "HKCU\SOFTWARE\Android SDK Tools" /v Path 2> NUL']
+            cOut = shellOutput(cReg)
+            nReg = substr(cOut, "REG_SZ")
+            if nReg > 0
+                cPath = trim(substr(cOut, nReg + len("REG_SZ")))
+                if dirExists(cPath)
+                    return cPath
+                ok
+            ok
+        next
+    else
+        if commandExists("adb")
+            cAdb = trim(shellOutput("which adb 2> /dev/null"))
+            if right(cAdb, len("/platform-tools/adb")) = "/platform-tools/adb"
+                cSdk = left(cAdb, len(cAdb) - len("/platform-tools/adb"))
+                if dirExists(cSdk)
+                    return cSdk
+                ok
+            ok
+        ok
+        if commandExists("sdkmanager")
+            cMgr = trim(shellOutput("which sdkmanager 2> /dev/null"))
+            if substr(cMgr, "/cmdline-tools/") > 0
+                nPos = substr(cMgr, "/cmdline-tools/")
+                cSdk = left(cMgr, nPos - 1)
+                if dirExists(cSdk)
+                    return cSdk
+                ok
+            ok
+        ok
     ok
 
-    cSdk = sysGet("ANDROID_HOME")
-    if len(cSdk) > 0 and dirExists(cSdk)
-        return cSdk
-    ok
-
-    # Check common locations
+    # 3) Common locations
     aLocations = []
 
     if isWindows()
         cUser = sysGet("USERPROFILE")
         aLocations = [
             cUser + "\AppData\Local\Android\Sdk",
+            cUser + "\AppData\Local\Android\sdk",
             cUser + "\Android\Sdk",
             "C:\Android\Sdk",
+            "C:\Android\sdk",
+            "C:\Program Files (x86)\Android\android-sdk",
             cUser + "\android-sdk"
         ]
     else
         cHome = sysGet("HOME")
         aLocations = [
             cHome + "/Android/Sdk",
+            cHome + "/Android/sdk",
             cHome + "/android-sdk",
             "/opt/android-sdk",
             "/usr/local/android-sdk",
-            cHome + "/Library/Android/sdk"
+            cHome + "/Library/Android/sdk",
+            "/opt/android"
         ]
     ok
 
@@ -51,26 +127,67 @@ func detectAndroidSdk
 
 # Detect Android NDK location
 func detectAndroidNdk cSdkPath
-    # Check environment variable first
-    cNdk = sysGet("ANDROID_NDK_ROOT")
-    if len(cNdk) > 0 and dirExists(cNdk)
-        return cNdk
+    for cEnv in ["ANDROID_NDK_ROOT", "ANDROID_NDK_HOME", "NDK_HOME", "NDK_ROOT"]
+        cNdk = sysGet(cEnv)
+        if len(cNdk) > 0 and dirExists(cNdk)
+            return cNdk
+        ok
+    next
+
+    # where ndk-build
+    if isWindows()
+        if commandExists("ndk-build.cmd")
+            cPath = trim(shellOutput('where ndk-build.cmd 2> NUL'))
+            nNl = substr(cPath, char(10))
+            if nNl > 0
+                cPath = left(cPath, nNl - 1)
+            ok
+            cPath = trim(cPath)
+            if len(cPath) > 0 and fExists(cPath)
+                # ndk-build.cmd is at <ndk>\ndk-build.cmd
+                nSep = 0
+                for i = len(cPath) to 1 step -1
+                    if cPath[i] = "\" or cPath[i] = "/"
+                        nSep = i
+                        exit
+                    ok
+                next
+                if nSep > 0
+                    cNdk = left(cPath, nSep - 1)
+                    if dirExists(cNdk)
+                        return cNdk
+                    ok
+                ok
+            ok
+        ok
+    else
+        if commandExists("ndk-build")
+            cPath = trim(shellOutput("which ndk-build 2> /dev/null"))
+            nSep = 0
+            for i = len(cPath) to 1 step -1
+                if cPath[i] = "/"
+                    nSep = i
+                    exit
+                ok
+            next
+            if nSep > 0
+                cNdk = left(cPath, nSep - 1)
+                if dirExists(cNdk)
+                    return cNdk
+                ok
+            ok
+        ok
     ok
 
-    cNdk = sysGet("NDK_HOME")
-    if len(cNdk) > 0 and dirExists(cNdk)
-        return cNdk
-    ok
-
-    # Check within SDK
+    # Within SDK and legacy ndk-bundle
     if len(cSdkPath) > 0
+        # Side-by-side: <sdk>/ndk/<version> — pick latest
         cNdkDir = cSdkPath + pathSeparator() + "ndk"
         if dirExists(cNdkDir)
-            # Find latest NDK version
             aFiles = dir(cNdkDir)
             cLatest = ""
             for aFile in aFiles
-                if aFile[2] = 1  # Is directory
+                if aFile[2] = 1
                     if compareVersions(aFile[1], cLatest) > 0
                         cLatest = aFile[1]
                     ok
@@ -79,6 +196,11 @@ func detectAndroidNdk cSdkPath
             if len(cLatest) > 0
                 return cNdkDir + pathSeparator() + cLatest
             ok
+        ok
+        # Legacy: <sdk>/ndk-bundle (pre side-by-side)
+        cLegacy = cSdkPath + pathSeparator() + "ndk-bundle"
+        if dirExists(cLegacy)
+            return cLegacy
         ok
     ok
 
