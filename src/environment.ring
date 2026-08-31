@@ -84,23 +84,130 @@ func detectAndroidNdk cSdkPath
 
     return ""
 
-# Detect Java/JDK location
+# Detect Java/JDK location 
 func detectJavaHome
-    cJava = sysGet("JAVA_HOME")
-    if len(cJava) > 0 and dirExists(cJava)
-        return cJava
+    # 1) Env vars (STUDIO_JDK > JDK_HOME > JAVA_HOME)
+    for cEnv in ["STUDIO_JDK", "JDK_HOME", "JAVA_HOME"]
+        cJava = sysGet(cEnv)
+        if len(cJava) > 0 and dirExists(cJava)
+            return cJava
+        ok
+    next
+
+    if isWindows()
+        # 2) Registry — HKLM\SOFTWARE\JavaSoft + vendors + WOW6432Node
+        aRegKeys = [
+            "HKLM\SOFTWARE\JavaSoft\Java Development Kit",
+            "HKLM\SOFTWARE\JavaSoft\JDK",
+            "HKLM\SOFTWARE\Eclipse Adoptium\JDK",
+            "HKLM\SOFTWARE\Microsoft\JDK",
+            "HKLM\SOFTWARE\Azul Systems\Zulu",
+            "HKLM\SOFTWARE\Amazon\Corretto",
+            "HKLM\SOFTWARE\Semeru\JDK",
+            "HKLM\SOFTWARE\WOW6432Node\JavaSoft\Java Development Kit",
+            "HKLM\SOFTWARE\WOW6432Node\JavaSoft\JDK",
+            "HKLM\SOFTWARE\WOW6432Node\Eclipse Adoptium\JDK"
+        ]
+        for cKey in aRegKeys
+            cOut = shellOutput('reg query "' + cKey + '" /s /v JavaHome 2> NUL')
+            for cLine in split(cOut, nl)
+                nPos = substr(cLine, "JavaHome")
+                if nPos = 0
+                    loop
+                ok
+                # Line: "    JavaHome    REG_SZ    C:\Program Files\Java\jdk-17"
+                nReg = substr(cLine, "REG_SZ")
+                if nReg = 0
+                    loop
+                ok
+                cPath = trim(substr(cLine, nReg + len("REG_SZ")))
+                if len(cPath) > 0 and dirExists(cPath)
+                    return cPath
+                ok
+            next
+        next
+
+        # 3) PATH — where javac / where java (fastest per codemia.io, StackOverflow #4681090)
+        for cBin in ["javac", "java"]
+            if commandExists(cBin)
+                cBinPath = trim(shellOutput('where ' + cBin + ' 2> NUL'))
+                nNl = substr(cBinPath, char(10))
+                if nNl > 0
+                    cBinPath = left(cBinPath, nNl - 1)
+                ok
+                nNl = substr(cBinPath, char(13))
+                if nNl > 0
+                    cBinPath = left(cBinPath, nNl - 1)
+                ok
+                cBinPath = trim(cBinPath)
+                if len(cBinPath) > 0 and fExists(cBinPath)
+                    cSuffix = "\" + cBin + ".exe"
+                    if right(lower(cBinPath), len(cSuffix)) = lower(cSuffix)
+                        cBinDir = left(cBinPath, len(cBinPath) - len(cSuffix))
+                    else
+                        # Fallback: strip filename
+                        nSep = 0
+                        for i = len(cBinPath) to 1 step -1
+                            if cBinPath[i] = "\" or cBinPath[i] = "/"
+                                nSep = i
+                                exit
+                            ok
+                        next
+                        if nSep = 0
+                            loop
+                        ok
+                        cBinDir = left(cBinPath, nSep - 1)
+                    ok
+                    nSep = 0
+                    for i = len(cBinDir) to 1 step -1
+                        if cBinDir[i] = "\" or cBinDir[i] = "/"
+                            nSep = i
+                            exit
+                        ok
+                    next
+                    if nSep > 0
+                        cJavaFromPath = left(cBinDir, nSep - 1)
+                        if dirExists(cJavaFromPath)
+                            # Must be a JDK (has javac) for Ring builds needing javac/d8
+                            if fExists(cJavaFromPath + "\bin\javac.exe") or cBin = "javac"
+                                return cJavaFromPath
+                            ok
+                        ok
+                    ok
+                ok
+            ok
+        next
+
+        # 4) Android Studio bundled JDK (jbr) — C:\Program Files\Android\Android Studio\jbr
+        for cStudio in [sysGet("ProgramFiles") + "\Android\Android Studio", sysGet("ProgramFiles(x86)") + "\Android\Android Studio", sysGet("LOCALAPPDATA") + "\Android\Sdk"]
+            if len(cStudio) > 0 and dirExists(cStudio + "\jbr") and fExists(cStudio + "\jbr\bin\javac.exe")
+                return cStudio + "\jbr"
+            ok
+            if len(cStudio) > 0 and dirExists(cStudio + "\jre") and fExists(cStudio + "\jre\bin\javac.exe")
+                return cStudio + "\jre"
+            ok
+        next
     ok
 
-    # Check common locations
+    # 5) Common locations (fallback)
     aLocations = []
 
     if isWindows()
         aLocations = [
             "C:\Program Files\Java\jdk-17",
             "C:\Program Files\Java\jdk-21",
+            "C:\Program Files\Eclipse Adoptium\jdk-17",
+            "C:\Program Files\Eclipse Adoptium\jdk-21",
+            "C:\Program Files\Microsoft\jdk-17",
+            "C:\Program Files\Microsoft\jdk-21",
             "C:\Program Files\Zulu\zulu-17",
             "C:\Program Files\Zulu\zulu-21",
-            sysGet("USERPROFILE") + "\open-jdk"
+            "C:\Program Files\Amazon Corretto\jdk17",
+            "C:\Program Files\Amazon Corretto\jdk21",
+            "C:\Program Files\Semeru\jdk-17",
+            sysGet("USERPROFILE") + "\open-jdk",
+            sysGet("USERPROFILE") + "\.jdks\openjdk-17",
+            sysGet("USERPROFILE") + "\.jdks\openjdk-21"
         ]
     else
         cHome = sysGet("HOME")
@@ -355,6 +462,13 @@ func printEnvironment oEnv
         ? FG_GREEN + "  [OK] " + COLOR_RESET + "CMake:       " + oEnv.cmake
     else
         ? FG_RED + "  [X]  " + COLOR_RESET + "CMake:       Not found"
+    ok
+
+    # Java
+    if oEnv.hasJava
+        ? FG_GREEN + "  [OK] " + COLOR_RESET + "Java:        " + oEnv.javaHome
+    else
+        ? FG_RED + "  [X]  " + COLOR_RESET + "Java:        Not found (set JAVA_HOME)"
     ok
 
 
