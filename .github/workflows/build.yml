@@ -107,7 +107,9 @@ jobs:
 
       - name: Build ring2apk (Unix)
         if: matrix.name != 'freebsd-amd64' && !startsWith(matrix.name, 'windows')
-        run: ring ring2exe-plus/tools/ring2exe/ring2exe.ring ring2apk.ring -static -release -output=ring2apk-${{ matrix.name }}
+        run: |
+          ring ring2exe-plus/tools/ring2exe/ring2exe.ring ring2apk.ring -static -release -output=ring2apk-${{ matrix.name }}
+          strip ring2apk-${{ matrix.name }}
 
       - name: Build ring2apk (Windows)
         if: startsWith(matrix.name, 'windows')
