@@ -40,6 +40,9 @@ aPackageInfo = [
 		"src/utils/uninstall.ring",
 		"src/utils/shared.ring",
 		"src/utils/shell.ring",
+
+		# Hello example
+		"examples/hello/AndroidManifest.xml",
 		"examples/hello/ring2apk.ring",
 		"examples/hello/ring/main.ring",
 		"examples/hello/README.md",
@@ -48,7 +51,33 @@ aPackageInfo = [
 		"examples/hello/res/values/styles.xml",
 		"examples/hello/src/cpp/CMakeLists.txt",
 		"examples/hello/src/cpp/main.c",
-		"examples/hello/src/cpp/README.md"
+		"examples/hello/src/cpp/README.md",
+
+		# RingRayLib example
+		"examples/ringraylib/.gitignore",
+		"examples/ringraylib/AndroidManifest.xml",
+		"examples/ringraylib/README.md",
+		"examples/ringraylib/download_deps.ring",
+		"examples/ringraylib/res/mipmap-hdpi/ic_launcher.png",
+		"examples/ringraylib/res/mipmap-mdpi/ic_launcher.png",
+		"examples/ringraylib/res/mipmap-xhdpi/ic_launcher.png",
+		"examples/ringraylib/res/mipmap-xxhdpi/ic_launcher.png",
+		"examples/ringraylib/res/values/colors.xml",
+		"examples/ringraylib/res/values/strings.xml",
+		"examples/ringraylib/res/values/styles.xml",
+		"examples/ringraylib/ring/classes.ring",
+		"examples/ringraylib/ring/functions.ring",
+		"examples/ringraylib/ring/main.ring",
+		"examples/ringraylib/ring/raygui.rh",
+		"examples/ringraylib/ring/raylib.rh",
+		"examples/ringraylib/ring/raylib.ring",
+		"examples/ringraylib/ring/shader.ring",
+		"examples/ringraylib/ring2apk.ring",
+		"examples/ringraylib/screenshots/screens.png",
+		"examples/ringraylib/src/cpp/CMakeLists.txt",
+		"examples/ringraylib/src/cpp/main.c",
+		"examples/ringraylib/src/cpp/ring_raylib.c",
+		"examples/ringraylib/src/java/com/ring/ringraylib/MainActivity.java"
 	],
 	:ringfolderfiles = 	[
 
