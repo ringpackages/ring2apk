@@ -42,7 +42,6 @@ aPackageInfo = [
 		"src/utils/shell.ring",
 
 		# Hello example
-		"examples/hello/AndroidManifest.xml",
 		"examples/hello/ring2apk.ring",
 		"examples/hello/ring/main.ring",
 		"examples/hello/README.md",
