@@ -52,6 +52,8 @@ ring2apk run                # build + install + launch + logcat
 ring2apk build --release    # → build/hello-release.apk (needs keystore)
 ```
 
+On Windows, use the shell-native verb: `Get-Content ring\main.ring` in PowerShell, `type ring\main.ring` in Command Prompt. (`ring2apk` itself is identical on all three.)
+
 ## Examples
 
 | Example | Description |
