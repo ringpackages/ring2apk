@@ -1,0 +1,5 @@
+build/
+.ring2apk.hash
+src/cpp/raygui
+src/cpp/raylib
+src/cpp/ring
