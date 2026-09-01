@@ -156,11 +156,11 @@ while !WindowShouldClose()
     navLabels = ["Menu", "Touch", "GUI", "Info"]
     for i = 1 to 4
         x = (i-1) * btnW
-        if i = currentScreen
-            DrawRectangle(x, navY, btnW, navH, Fade(BLUE, 0.3))
-        ok
         if GuiButton(Rectangle(x, navY, btnW, navH), navLabels[i])
             currentScreen = i
+        ok
+        if i = currentScreen
+            DrawRectangle(x, navY, btnW, navH, Fade(BLUE, 0.3))
         ok
     next
 
