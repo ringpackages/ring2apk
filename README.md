@@ -52,6 +52,13 @@ ring2apk run                # build + install + launch + logcat
 ring2apk build --release    # → build/hello-release.apk (needs keystore)
 ```
 
+## Examples
+
+| Example | Description |
+|---|---|
+| [hello](examples/hello/) | Hello world — the default `ring2apk init` template |
+| [ringraylib](examples/ringraylib/) | raylib 5.5 + raygui 5.0 multi-screen demo (touch/gestures, GUI controls) — fullscreen immersive, scales to any screen size, custom `AndroidManifest.xml` + `MainActivity` |
+
 ## How it works
 
 1. `ring/main.ring` (and every transitive `load`) is compiled with `ring -go -norun` into `build/gen/ringappcode.c`/`ringappcode.h` (hex-embedded bytecode).
