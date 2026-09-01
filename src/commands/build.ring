@@ -420,6 +420,42 @@ func buildNativeFromSource oBuild, cCppDir
         return false
     ok
 
+    # Ninja is bundled with the SDK CMake package at <sdk>/cmake/<ver>/bin/ninja[.exe]
+    # Fallback to no -G (CMake default generator) when no Ninja exists at all
+    cNinja = ""
+    if cCMake != "cmake" and len(cCMake) > 0
+        nSep = 0
+        for i = len(cCMake) to 1 step -1
+            if cCMake[i] = "/" or cCMake[i] = char(92)
+                nSep = i
+                exit
+            ok
+        next
+        if nSep > 0
+            cDir = left(cCMake, nSep - 1)
+            cCandidate = cDir + pathSeparator() + "ninja"
+            if isWindows()
+                cCandidate += ".exe"
+            ok
+            if fExists(cCandidate)
+                cNinja = cCandidate
+            ok
+        ok
+    ok
+
+    # Decide generator: prefer Ninja when available (bundled next to cmake or on PATH),
+    # otherwise omit -G and let CMake pick its default (VS/NMake/Makefiles).
+    cGenerator = ' -G Ninja'
+    cMakeProgram = ""
+    if len(cNinja) > 0
+        cMakeProgram = ' -DCMAKE_MAKE_PROGRAM="' + cNinja + '"'
+    else
+        # No bundled ninja — check PATH
+        if not commandExists("ninja")
+            cGenerator = ""  # no Ninja on system -> fallback to default generator
+        ok
+    ok
+
     cLibName = getNativeLibName()
     nMinSdk = oBuild.config[:minSdk]
     nJobs = nofProcessors()
@@ -449,8 +485,7 @@ func buildNativeFromSource oBuild, cCppDir
 
         logBuild("Configuring " + cAbi + " (NDK " + cNdkPath + ")...")
 
-        cCmd = '"' + cCMake + '" -S "' + cCppDir + '" -B "' + cNativeDir + '" ' +
-               '-G Ninja ' +
+        cCmd = '"' + cCMake + '" -S "' + cCppDir + '" -B "' + cNativeDir + '"' + cGenerator + cMakeProgram + ' ' +
                '-DCMAKE_TOOLCHAIN_FILE="' + cToolchain + '" ' +
                '-DANDROID_ABI=' + cAbi + ' ' +
                '-DANDROID_PLATFORM=android-' + nMinSdk + ' ' +
