@@ -27,20 +27,21 @@ func download cUrl, cDestParent, cExtractName, cTargetName
 		return
 	ok
 
-	cZip = tempName()
-	remove(cZip)
+	cZip = tempname() + ".zip"
 	write(cZip, cData)
 
-	zip_extract_allfiles(cZip, cDestParent + "/")
+	zip_extract_allfiles(cZip, cDestParent)
 	remove(cZip)
 
-	cExtracted = cDestParent + "/" + cExtractName
-	if dirExists(cTarget)
-		cOrig = currentdir()
-		chdir(cDestParent)
-		osDeleteFolder(cTargetName)
-		chdir(cOrig)
-	ok
-	rename(cExtracted, cTarget)
+	cExtractedPath = cDestParent + "/" + cExtractName
+	cTargetPath    = cDestParent + "/" + cTargetName
 
-	? "  -> " + cTarget
+	if dirExists(cTargetPath)
+		osDeleteFolder(cTargetPath)
+	ok
+
+	if cExtractedPath != cTargetPath and dirExists(cExtractedPath)
+		rename(cExtractedPath, cTargetPath)
+	ok
+
+	? "  -> " + cTargetPath
