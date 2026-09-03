@@ -102,11 +102,6 @@ func showHelp
     ? "    --target=<ABI>      Target ABI(s): arm64-v8a,armeabi-v7a,x86,x86_64"
     ? "    --device=<SERIAL>   Target device serial number"
     ? "    --verbose           Print every shell command before running it"
-    ? ""
-    ? FG_CYAN + "EXAMPLES:" + COLOR_RESET
-    ? "    ring2apk init mygame"
-    ? "    ring2apk build --release --target=arm64-v8a"
-    ? "    ring2apk run"
-
+    
 func showVersion
     ? "Ring2APK " + $RING2APK_VERSION
