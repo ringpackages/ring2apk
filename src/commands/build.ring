@@ -581,7 +581,9 @@ func compileJava oBuild
 
     cAndroidJar = findPlatform(oBuild.env.sdkPath, oBuild.config[:compileSdk]) + "/android.jar"
     if not fExists(cAndroidJar)
-        logError("android.jar not found for API " + oBuild.config[:compileSdk])
+        logError("android.jar not found for API " + oBuild.config[:compileSdk] +
+                 " — platforms/android-" + oBuild.config[:compileSdk] +
+                 " missing (installed: " + installedPlatformsHint(oBuild.env.sdkPath) + ")")
         return false
     ok
 
@@ -655,7 +657,9 @@ func createApk oBuild
     # Find android.jar
     cAndroidJar = findPlatform(oBuild.env.sdkPath, oBuild.config[:compileSdk]) + "/android.jar"
     if not fExists(cAndroidJar)
-        logError("android.jar not found for API " + oBuild.config[:compileSdk])
+        logError("android.jar not found for API " + oBuild.config[:compileSdk] +
+                 " — platforms/android-" + oBuild.config[:compileSdk] +
+                 " missing (installed: " + installedPlatformsHint(oBuild.env.sdkPath) + ")")
         return false
     ok
 

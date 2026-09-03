@@ -105,7 +105,14 @@ func loadConfig cConfigFile
         return NULL
     ok
     
-    return mergeConfig(aDefaults, aUser)
+    aConfig = mergeConfig(aDefaults, aUser)
+
+    # Canonicalize SDK versions once
+    aConfig[:minSdk] = sdkVersionString(aConfig[:minSdk])
+    aConfig[:targetSdk] = sdkVersionString(aConfig[:targetSdk])
+    aConfig[:compileSdk] = sdkVersionString(aConfig[:compileSdk])
+
+    return aConfig
 
 # Merge user config into default config
 # Configs are hash lists stored as [key, value] pairs: iterate pairs and
@@ -141,11 +148,11 @@ func validateConfig oConfig
     ok
     
     # Validate SDK versions
-    if oConfig[:minSdk] < 21
+    if NumOrZero(oConfig[:minSdk]) < 21
         aErrors + "minSdk must be at least 21"
     ok
     
-    if oConfig[:targetSdk] < oConfig[:minSdk]
+    if NumOrZero(oConfig[:targetSdk]) < NumOrZero(oConfig[:minSdk])
         aErrors + "targetSdk must be >= minSdk"
     ok
     

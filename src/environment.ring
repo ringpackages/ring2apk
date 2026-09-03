@@ -109,6 +109,7 @@ func detectAndroidSdk
         aLocations = [
             cHome + "/Android/Sdk",
             cHome + "/Android/sdk",
+            cHome + "/Android",
             cHome + "/android-sdk",
             "/opt/android-sdk",
             "/usr/local/android-sdk",
@@ -407,15 +408,31 @@ func compareVersions cV1, cV2
     return 0
 
 # Find platform path
-func findPlatform cSdkPath, nApiLevel
+func findPlatform cSdkPath, cApiLevel
     cPlatformsDir = cSdkPath + pathSeparator() + "platforms"
-    cPlatformPath = cPlatformsDir + pathSeparator() + "android-" + nApiLevel
+    cPlatformPath = cPlatformsDir + pathSeparator() + "android-" + cApiLevel
 
     if dirExists(cPlatformPath)
         return cPlatformPath
     ok
 
     return ""
+
+# Human-readable list of installed platform dirs (for error hints)
+func installedPlatformsHint cSdkPath
+    aNames = []
+    cPlatformsDir = cSdkPath + pathSeparator() + "platforms"
+    if dirExists(cPlatformsDir)
+        for aEntry in dir(cPlatformsDir)
+            if aEntry[2] != 0 and left(aEntry[1], 8) = "android-"
+                aNames + aEntry[1]
+            ok
+        next
+    ok
+    if len(aNames) = 0
+        return "none installed"
+    ok
+    return strJoin(sort(aNames), ", ")
 
 # Get path to a build tool
 func getBuildTool cSdkPath, cToolName
