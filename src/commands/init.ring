@@ -20,7 +20,7 @@ func cmdInit aArgs
 
     # Check for Ring language sources
     cRingRoot = sysGet("RING")
-    if len(cRingRoot) = 0 or not dirExists(cRingRoot + "/language/src")
+    if len(cRingRoot) = 0 or not dirExists(joinPath([cRingRoot, "language", "src"]))
         fail("RING environment variable not set or Ring sources not found." + nl +
              "Set RING to your Ring installation root (e.g. export RING=/opt/ring)")
     ok
@@ -46,19 +46,19 @@ func createProjectStructure cName, cRingRoot
     logStep("1/6", "Creating directories...")
 
     mkDir(cName)
-    mkDir(cName + "/assets")
-    mkDir(cName + "/ring")
-    mkDir(cName + "/res/drawable")
-    mkDir(cName + "/res/mipmap-hdpi")
-    mkDir(cName + "/res/mipmap-mdpi")
-    mkDir(cName + "/res/mipmap-xhdpi")
-    mkDir(cName + "/res/mipmap-xxhdpi")
-    mkDir(cName + "/res/values")
-    mkDir(cName + "/src/java")
-    mkDir(cName + "/src/cpp")
+    mkDir(joinPath([cName, "assets"]))
+    mkDir(joinPath([cName, "ring"]))
+    mkDir(joinPath([cName, "res", "drawable"]))
+    mkDir(joinPath([cName, "res", "mipmap-hdpi"]))
+    mkDir(joinPath([cName, "res", "mipmap-mdpi"]))
+    mkDir(joinPath([cName, "res", "mipmap-xhdpi"]))
+    mkDir(joinPath([cName, "res", "mipmap-xxhdpi"]))
+    mkDir(joinPath([cName, "res", "values"]))
+    mkDir(joinPath([cName, "src", "java"]))
+    mkDir(joinPath([cName, "src", "cpp"]))
 
     logStep("2/6", "Copying Ring VM sources...")
-    copyRingSources(cRingRoot, cName + "/src/cpp/ring")
+    copyRingSources(cRingRoot, joinPath([cName, "src", "cpp", "ring"]))
 
     logStep("3/6", "Creating configuration...")
 
@@ -67,7 +67,7 @@ func createProjectStructure cName, cRingRoot
     oConfig[:packageId] = "com.example." + lower(cName)
     oConfig[:label] = cName
     oConfig[:ringSrcDir] = "ring"
-    saveConfig(cName + "/ring2apk.ring", oConfig)
+    saveConfig(joinPath([cName, "ring2apk.ring"]), oConfig)
 
     logStep("4/6", "Creating Ring source and native entry point...")
     createNativeTemplate(cName)
@@ -83,30 +83,30 @@ func createProjectStructure cName, cRingRoot
 
 # Copy Ring VM sources (src/ and include/) from the Ring installation
 func copyRingSources cRingRoot, cDestRing
-    cLangSrc = cRingRoot + "/language/src"
-    cLangInc = cRingRoot + "/language/include"
+    cLangSrc = joinPath([cRingRoot, "language", "src"])
+    cLangInc = joinPath([cRingRoot, "language", "include"])
 
     if not dirExists(cLangSrc) or not dirExists(cLangInc)
-        fail("Ring sources not found at " + cRingRoot + "/language")
+        fail("Ring sources not found at " + joinPath([cRingRoot, "language"]))
     ok
 
-    mkDir(cDestRing + "/src")
-    mkDir(cDestRing + "/include")
+    mkDir(joinPath([cDestRing, "src"]))
+    mkDir(joinPath([cDestRing, "include"]))
 
     aFiles = dir(cLangSrc)
     for aFile in aFiles
         cFileName = aFile[1]
         if aFile[2] = 0 and cFileName != "ring.c" and cFileName != "ringw.c"
-            copyFile(cLangSrc + "/" + cFileName, cDestRing + "/src/" + cFileName)
+            copyFile(joinPath([cLangSrc, cFileName]), joinPath([cDestRing, "src", cFileName]))
         ok
     next
 
-    copyDir(cLangInc, cDestRing + "/include")
-    logBuild("Copied Ring VM sources from " + cRingRoot + "/language")
+    copyDir(cLangInc, joinPath([cDestRing, "include"]))
+    logBuild("Copied Ring VM sources from " + joinPath([cRingRoot, "language"]))
 
 # Create the Ring source entry point (simple hello world)
 func createNativeTemplate cName
-    write(cName + "/ring/main.ring", '? "Hello from Ring on Android!"' + nl)
+    write(joinPath([cName, "ring", "main.ring"]), '? "Hello from Ring on Android!"' + nl)
 
 # Create the native C entry point (main.c)
 # Runs the embedded Ring bytecode via ringappcode_run()
@@ -167,7 +167,7 @@ void android_main(struct android_app *app) {
     LOGI("=== Ring App Finished ===");
 }
 `
-    write(cName + "/src/cpp/main.c", cMain)
+    write(joinPath([cName, "src", "cpp", "main.c"]), cMain)
 
 # Create CMakeLists.txt for the NDK build
 func createCMakeLists cName
@@ -229,7 +229,7 @@ target_link_libraries(main PRIVATE
     log
 )
 `
-    write(cName + "/src/cpp/CMakeLists.txt", cContent)
+    write(joinPath([cName, "src", "cpp", "CMakeLists.txt"]), cContent)
 
 # Create Android resource files
 func createAndroidResources cName
@@ -239,7 +239,7 @@ func createAndroidResources cName
     <string name="app_name">` + cName + `</string>
 </resources>
 `
-    write(cName + "/res/values/strings.xml", cStrings)
+    write(joinPath([cName, "res", "values", "strings.xml"]), cStrings)
 
     # colors.xml
     cColors = `<?xml version="1.0" encoding="utf-8"?>
@@ -249,7 +249,7 @@ func createAndroidResources cName
     <color name="colorAccent">#03DAC5</color>
 </resources>
 `
-    write(cName + "/res/values/colors.xml", cColors)
+    write(joinPath([cName, "res", "values", "colors.xml"]), cColors)
 
     # styles.xml
     cStyles = `<?xml version="1.0" encoding="utf-8"?>
@@ -258,7 +258,7 @@ func createAndroidResources cName
     </style>
 </resources>
 `
-    write(cName + "/res/values/styles.xml", cStyles)
+    write(joinPath([cName, "res", "values", "styles.xml"]), cStyles)
 
 # Create the top-level project README
 func createProjectReadme cName
@@ -292,7 +292,7 @@ func createProjectReadme cName
         "## Clean" + nl + nl +
         "    ring2apk clean" + nl + nl +
         "See ring2apk help for all commands and options." + nl
-    write(cName + "/README.md", cReadme)
+    write(joinPath([cName, "README.md"]), cReadme)
 
 # Create the src/cpp README
 func createCppReadme cName
@@ -311,4 +311,4 @@ func createCppReadme cName
         "## Customizing" + nl + nl +
         "- Edit ../ring/main.ring to change your Ring app logic." + nl +
         "- The library name must match android.app.lib_name in the manifest (default: main)." + nl
-    write(cName + "/src/cpp/README.md", cReadme)
+    write(joinPath([cName, "src", "cpp", "README.md"]), cReadme)

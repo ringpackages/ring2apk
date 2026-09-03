@@ -44,7 +44,7 @@ func listAllFilesEx cDir, cExt
 
     aFiles = dir(cDir)
     for aFile in aFiles
-        cPath = cDir + "/" + aFile[1]
+        cPath = joinPath([cDir, aFile[1]])
         if aFile[2]  # Directory
             aSubFiles = listAllFilesEx(cPath, cExt)
             for cSub in aSubFiles

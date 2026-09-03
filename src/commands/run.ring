@@ -64,7 +64,7 @@ func cmdRun aArgs
     else
         cApkName += "-debug"
     ok
-    cApkPath = oConfig[:outputDir] + "/" + cApkName + ".apk"
+    cApkPath = joinPath([oConfig[:outputDir], cApkName + ".apk"])
     
     if not fExists(cApkPath)
         fail("APK not found: " + cApkPath)
@@ -192,7 +192,7 @@ func findLaunchActivity cPackage, cManifestPath
     # Mirror the generated-manifest rule: no Java sources -> NativeActivity,
     # with src/java/*.java -> <package>.MainActivity
     cFallback = "android.app.NativeActivity"
-    if hasJavaSources("src/java")
+    if hasJavaSources(joinPath(["src", "java"]))
         cFallback = cPackage + ".MainActivity"
     ok
 

@@ -61,9 +61,9 @@ func cmdSign aArgs
     
     # Find APK if not specified
     if len(cApkPath) = 0
-        cApkPath = oConfig[:outputDir] + "/" + oConfig[:name] + "-release.apk"
+        cApkPath = joinPath([oConfig[:outputDir], oConfig[:name] + "-release.apk"])
         if not fExists(cApkPath)
-            cApkPath = oConfig[:outputDir] + "/" + oConfig[:name] + "-debug.apk"
+            cApkPath = joinPath([oConfig[:outputDir], oConfig[:name] + "-debug.apk"])
         ok
     ok
     

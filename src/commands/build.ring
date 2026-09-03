@@ -73,7 +73,7 @@ func cmdBuild aArgs
     if lRelease
         cSuffix = "release"
     ok
-    cBuiltApk = oConfig[:outputDir] + "/" + oConfig[:name] + "-" + cSuffix + ".apk"
+    cBuiltApk = joinPath([oConfig[:outputDir], oConfig[:name] + "-" + cSuffix + ".apk"])
     cHashFile = ".ring2apk.hash"
     cCurrentHash = computeSourcesHash(oConfig)
     if not lRebuild and fExists(cBuiltApk) and fExists(cHashFile)
@@ -120,7 +120,7 @@ func computeSourcesHash oConfig
     ok
 
     # Java sources
-    cJavaDir = oConfig[:srcDir] + "/java"
+    cJavaDir = joinPath([oConfig[:srcDir], "java"])
     if dirExists(cJavaDir)
         for cFile in listAllFilesEx(cJavaDir, ".java")
             aFiles + cFile
@@ -128,10 +128,12 @@ func computeSourcesHash oConfig
     ok
 
     # C/C++ sources (excluding vendored Ring VM)
-    cCppDir = oConfig[:srcDir] + "/cpp"
+    cCppDir = joinPath([oConfig[:srcDir], "cpp"])
     if dirExists(cCppDir)
         for cFile in listAllFilesEx(cCppDir, "")
-            if substr(lower(cFile), "/ring/") = 0
+            # listAllFilesEx returns native separators ("\ring\" on Windows):
+            # normalize before the substring check
+            if substr(subStr(lower(cFile), char(92), "/"), "/ring/") = 0
                 aFiles + cFile
             ok
         next
@@ -232,17 +234,17 @@ func prepareBuildDirs oBuild
     ok
 
     mkDir(cBuildDir)
-    mkDir(cBuildDir + "/apk")
-    mkDir(cBuildDir + "/apk/lib")
-    mkDir(cBuildDir + "/apk/assets")
-    mkDir(cBuildDir + "/res-compiled")
-    mkDir(cBuildDir + "/gen")
-    mkDir(cBuildDir + "/obj")
-    mkDir(cBuildDir + "/dex")
+    mkDir(joinPath([cBuildDir, "apk"]))
+    mkDir(joinPath([cBuildDir, "apk", "lib"]))
+    mkDir(joinPath([cBuildDir, "apk", "assets"]))
+    mkDir(joinPath([cBuildDir, "res-compiled"]))
+    mkDir(joinPath([cBuildDir, "gen"]))
+    mkDir(joinPath([cBuildDir, "obj"]))
+    mkDir(joinPath([cBuildDir, "dex"]))
 
     # Create lib directories for each ABI
     for cAbi in oBuild.config[:targets]
-        mkDir(cBuildDir + "/apk/lib/" + cAbi)
+        mkDir(joinPath([cBuildDir, "apk", "lib", cAbi]))
     next
 
     oBuild.buildDir = cBuildDir
@@ -251,7 +253,7 @@ func prepareBuildDirs oBuild
 # Copy assets to build directory
 func copyAssets oBuild
     cSrcAssets = oBuild.config[:assetsDir]
-    cDestAssets = oBuild.buildDir + "/apk/assets"
+    cDestAssets = joinPath([oBuild.buildDir, "apk", "assets"])
 
     if dirExists(cSrcAssets)
         copyDir(cSrcAssets, cDestAssets)
@@ -274,8 +276,8 @@ func embedRingCode oBuild
     ok
 
     cEntry = oBuild.config[:entryPoint]
-    if not fExists(cRingSrc + "/" + cEntry)
-        logError("Entry point not found: " + cRingSrc + "/" + cEntry)
+    if not fExists(joinPath([cRingSrc, cEntry]))
+        logError("Entry point not found: " + joinPath([cRingSrc, cEntry]))
         return false
     ok
 
@@ -287,7 +289,7 @@ func embedRingCode oBuild
 
     # Stage the Ring sources in the build directory so ring's generated
     # .ringo never touches the project source tree
-    cStage = oBuild.buildDir + "/ring-src"
+    cStage = joinPath([oBuild.buildDir, "ring-src"])
     rmrf(cStage)
     mkDir(cStage)
     copyDir(cRingSrc, cStage)
@@ -312,7 +314,7 @@ func embedRingCode oBuild
     ok
 
     # ring -go -norun writes <entry>.ringo (same basename, .ringo extension)
-    cRingoFile = cStage + "/" + subStr(cEntry, 1, len(cEntry) - 5) + ".ringo"
+    cRingoFile = joinPath([cStage, subStr(cEntry, 1, len(cEntry) - 5) + ".ringo"])
     if not fExists(cRingoFile)
         logError("ring -go -norun did not produce .ringo file")
         return false
@@ -323,7 +325,7 @@ func embedRingCode oBuild
     cHex = str2hexCStyle(cRingoData)
     nSize = len(cRingoData)
 
-    cGenDir = oBuild.buildDir + "/gen"
+    cGenDir = joinPath([oBuild.buildDir, "gen"])
     mkDir(cGenDir)
 
     cCode = "#include " + '"ringappcode.h"' + nl + nl +
@@ -334,16 +336,16 @@ func embedRingCode oBuild
         "void ringappcode_run(RingState *pRingState) {" + nl +
         "  ring_state_runobjectstring(pRingState, (char *)g_bytecode, " + nSize + ", " + '"embedded.ringo"' + ");" + nl +
         "}" + nl
-    write(cGenDir + "/ringappcode.c", cCode)
+    write(joinPath([cGenDir, "ringappcode.c"]), cCode)
 
     cHeader = "#ifndef RINGAPPCODE_H" + nl +
         "#define RINGAPPCODE_H" + nl + nl +
         "#include " + '"ring.h"' + nl + nl +
         "void ringappcode_run(RingState *pRingState);" + nl + nl +
         "#endif" + nl
-    write(cGenDir + "/ringappcode.h", cHeader)
+    write(joinPath([cGenDir, "ringappcode.h"]), cHeader)
 
-    logBuild("Embedded Ring bytecode (" + nSize + " bytes) -> " + cGenDir + "/ringappcode.c")
+    logBuild("Embedded Ring bytecode (" + nSize + " bytes) -> " + joinPath([cGenDir, "ringappcode.c"]))
     return true
 # Compile resources with aapt2
 func compileResources oBuild
@@ -354,7 +356,7 @@ func compileResources oBuild
     ok
 
     cResDir = oBuild.config[:resDir]
-    cCompiledDir = oBuild.buildDir + "/res-compiled"
+    cCompiledDir = joinPath([oBuild.buildDir, "res-compiled"])
 
     if not dirExists(cResDir)
         logWarning("No res directory found, skipping resource compilation")
@@ -378,8 +380,8 @@ func compileResources oBuild
 func buildNativeLibs oBuild
     # Compile src/cpp (Ring VM + raylib/sokol etc.) with NDK/CMake when the
     # project ships a CMake project; otherwise package no native library.
-    cCppDir = oBuild.config[:srcDir] + "/cpp"
-    if fExists(cCppDir + "/CMakeLists.txt")
+    cCppDir = joinPath([oBuild.config[:srcDir], "cpp"])
+    if fExists(joinPath([cCppDir, "CMakeLists.txt"]))
         return buildNativeFromSource(oBuild, cCppDir)
     ok
 
@@ -391,14 +393,14 @@ func buildNativeLibs oBuild
 # Build native libraries from src/cpp using the NDK toolchain + CMake
 func buildNativeFromSource oBuild, cCppDir
     # Re-copy Ring VM sources if they were deleted or never copied
-    cRingDir = cCppDir + "/ring"
-    if not dirExists(cRingDir + "/src")
+    cRingDir = joinPath([cCppDir, "ring"])
+    if not dirExists(joinPath([cRingDir, "src"]))
         cRingRoot = oBuild.env.ringRoot
-        if len(cRingRoot) = 0 or not dirExists(cRingRoot + "/language/src")
+        if len(cRingRoot) = 0 or not dirExists(joinPath([cRingRoot, "language", "src"]))
             logError("Ring sources missing from src/cpp/ring and RING env not set — can't build native libs")
             return false
         ok
-        logInfo("Ring VM sources missing, copying from " + cRingRoot + "/language...")
+        logInfo("Ring VM sources missing, copying from " + joinPath([cRingRoot, "language"]) + "...")
         copyRingSources(cRingRoot, cRingDir)
     ok
 
@@ -408,7 +410,7 @@ func buildNativeFromSource oBuild, cCppDir
         return false
     ok
 
-    cToolchain = cNdkPath + "/build/cmake/android.toolchain.cmake"
+    cToolchain = joinPath([cNdkPath, "build", "cmake", "android.toolchain.cmake"])
     if not fExists(cToolchain)
         logError("NDK toolchain not found: " + cToolchain)
         return false
@@ -465,10 +467,10 @@ func buildNativeFromSource oBuild, cCppDir
         if oBuild.isRelease
             cBuildType = "Release"
         ok
-        cNativeDir = oBuild.buildDir + "/native/" + cAbi
+        cNativeDir = joinPath([oBuild.buildDir, "native", cAbi])
         # CMake caches CMAKE_BUILD_TYPE; wipe stale configs when build type changes
         # so debug/release switches actually reconfigure instead of keeping old flags
-        cCacheFile = cNativeDir + "/CMakeCache.txt"
+        cCacheFile = joinPath([cNativeDir, "CMakeCache.txt"])
         if fExists(cCacheFile)
             cCachedType = ""
             for cLine in str2List(read(cCacheFile))
@@ -505,15 +507,15 @@ func buildNativeFromSource oBuild, cCppDir
             return false
         ok
 
-        cSo = cNativeDir + "/lib" + cLibName + ".so"
+        cSo = joinPath([cNativeDir, "lib" + cLibName + ".so"])
         if not fExists(cSo)
             logError("Expected library not produced: " + cSo)
             return false
         ok
 
-        cDest = oBuild.buildDir + "/apk/lib/" + cAbi
+        cDest = joinPath([oBuild.buildDir, "apk", "lib", cAbi])
         mkDir(cDest)
-        copyFile(cSo, cDest + "/lib" + cLibName + ".so")
+        copyFile(cSo, joinPath([cDest, "lib" + cLibName + ".so"]))
         logBuild("Packaged lib" + cLibName + ".so for " + cAbi)
     next
 
@@ -579,7 +581,7 @@ func compileJava oBuild
         return false
     ok
 
-    cAndroidJar = findPlatform(oBuild.env.sdkPath, oBuild.config[:compileSdk]) + "/android.jar"
+    cAndroidJar = joinPath([findPlatform(oBuild.env.sdkPath, oBuild.config[:compileSdk]), "android.jar"])
     if not fExists(cAndroidJar)
         logError("android.jar not found for API " + oBuild.config[:compileSdk] +
                  " — platforms/android-" + oBuild.config[:compileSdk] +
@@ -588,7 +590,7 @@ func compileJava oBuild
     ok
 
     # javac -> .class files
-    cClassDir = oBuild.buildDir + "/obj/classes"
+    cClassDir = joinPath([oBuild.buildDir, "obj", "classes"])
     mkDir(cClassDir)
 
     cFileList = ""
@@ -606,7 +608,7 @@ func compileJava oBuild
     logBuild("Compiled Java sources")
 
     # d8 -> classes.dex
-    cDexDir = oBuild.buildDir + "/dex"
+    cDexDir = joinPath([oBuild.buildDir, "dex"])
     mkDir(cDexDir)
 
     cClassFiles = ""
@@ -626,11 +628,11 @@ func compileJava oBuild
     ok
 
     # Stage at the APK root (addFilesToApk zips buildDir/apk)
-    if not fExists(cDexDir + "/classes.dex")
+    if not fExists(joinPath([cDexDir, "classes.dex"]))
         logError("d8 did not produce classes.dex")
         return false
     ok
-    copyFile(cDexDir + "/classes.dex", oBuild.buildDir + "/apk/classes.dex")
+    copyFile(joinPath([cDexDir, "classes.dex"]), joinPath([oBuild.buildDir, "apk", "classes.dex"]))
     logBuild("Packaged classes.dex")
     return true
 
@@ -641,7 +643,7 @@ func createApk oBuild
 
     # Use the project's AndroidManifest.xml when present (NativeActivity,
     # custom resources, etc.), otherwise generate a default one
-    cBuiltManifest = cBuildDir + "/AndroidManifest.xml"
+    cBuiltManifest = joinPath([cBuildDir, "AndroidManifest.xml"])
     if fExists("AndroidManifest.xml")
         copyFile("AndroidManifest.xml", cBuiltManifest)
         logBuild("Using project AndroidManifest.xml")
@@ -655,7 +657,7 @@ func createApk oBuild
     ensureManifestPackage(cBuiltManifest, oBuild.config[:packageId])
 
     # Find android.jar
-    cAndroidJar = findPlatform(oBuild.env.sdkPath, oBuild.config[:compileSdk]) + "/android.jar"
+    cAndroidJar = joinPath([findPlatform(oBuild.env.sdkPath, oBuild.config[:compileSdk]), "android.jar"])
     if not fExists(cAndroidJar)
         logError("android.jar not found for API " + oBuild.config[:compileSdk] +
                  " — platforms/android-" + oBuild.config[:compileSdk] +
@@ -664,8 +666,8 @@ func createApk oBuild
     ok
 
     # Link resources and create base APK
-    cBaseApk = cBuildDir + "/base.apk"
-    cResCompiled = cBuildDir + "/res-compiled"
+    cBaseApk = joinPath([cBuildDir, "base.apk"])
+    cResCompiled = joinPath([cBuildDir, "res-compiled"])
 
     # Find all compiled resources
     cResFlat = ""
@@ -673,14 +675,14 @@ func createApk oBuild
         aFlats = dir(cResCompiled)
         for aFile in aFlats
             if aFile[2] = 0  # Is file
-                cResFlat += '"' + cResCompiled + "/" + aFile[1] + '" '
+                cResFlat += '"' + joinPath([cResCompiled, aFile[1]]) + '" '
             ok
         next
     ok
 
     cCmd = '"' + cAapt2 + '" link -o "' + cBaseApk + '" ' +
            '-I "' + cAndroidJar + '" ' +
-           '--manifest "' + cBuildDir + '/AndroidManifest.xml" ' +
+           '--manifest "' + joinPath([cBuildDir, "AndroidManifest.xml"]) + '" ' +
            '--rename-manifest-package ' + oBuild.config[:packageId] + ' ' +
            '--min-sdk-version ' + oBuild.config[:minSdk] + ' ' +
            '--target-sdk-version ' + oBuild.config[:targetSdk] + ' ' +
@@ -701,18 +703,18 @@ func createApk oBuild
     ok
 
     # Add native libraries and assets to APK
-    cUnalignedApk = cBuildDir + "/unaligned.apk"
+    cUnalignedApk = joinPath([cBuildDir, "unaligned.apk"])
     copyFile(cBaseApk, cUnalignedApk)
 
     # Use zip to add files (assets, native libraries, ...)
-    if addFilesToApk(cUnalignedApk, cBuildDir + "/apk", oBuild.env.javaHome) != 0
+    if addFilesToApk(cUnalignedApk, joinPath([cBuildDir, "apk"]), oBuild.env.javaHome) != 0
         logError("Failed to add files to APK!")
         return false
     ok
 
     # Align the APK
     cZipalign = oBuild.env.zipalign
-    cAlignedApk = cBuildDir + "/aligned.apk"
+    cAlignedApk = joinPath([cBuildDir, "aligned.apk"])
 
     cCmd = '"' + cZipalign + '" -f -v 4 "' + cUnalignedApk + '" "' + cAlignedApk + '"'
     if shellSilent(cCmd) != 0
@@ -786,7 +788,7 @@ func signApk oBuild
     else
         cOutputName += "-debug"
     ok
-    cOutputApk = oBuild.buildDir + "/" + cOutputName + ".apk"
+    cOutputApk = joinPath([oBuild.buildDir, cOutputName + ".apk"])
 
     # Copy aligned APK to output
     copyFile(cAlignedApk, cOutputApk)
@@ -914,7 +916,7 @@ func generateManifest oConfig
 
     # Activity choice: NativeActivity for pure-native apps, the project's
     # MainActivity when Java sources are present
-    lHasJava = hasJavaSources("src/java")
+    lHasJava = hasJavaSources(joinPath(["src", "java"]))
     if lHasJava
         cActivityClass = oConfig[:packageId] + ".MainActivity"
         cHasCode = "true"
