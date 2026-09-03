@@ -564,7 +564,8 @@ func compileJava oBuild
     cJavaSrc = "src/java"
     aJavaFiles = listAllFilesEx(cJavaSrc, ".java")
     if len(aJavaFiles) = 0
-        return true  # No Java code to compile
+        logBuild("No Java sources, skipping")
+        return true
     ok
 
     cJavaHome = oBuild.env.javaHome
