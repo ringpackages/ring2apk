@@ -25,6 +25,15 @@ Build Android APKs from [Ring](https://ring-lang.github.io) applications without
 - **CMake + Ninja** (SDK `cmake` package or system `cmake`)
 - **zip** — Linux/macOS on `PATH`
 
+Don't have them yet? Run the setup script to install any components you need (JDK, SDK, NDK, CMake):
+
+```bash
+cd tools
+ring setup-env.ring
+```
+
+Features interactive version selection pulled directly from upstream (Google's SDK repository and the Azul Zulu API—nothing hardcoded). It then automatically configures `JAVA_HOME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`, `ANDROID_NDK_ROOT`, and `PATH` for you.
+
 ## Installation
 
 Via RingPM:
