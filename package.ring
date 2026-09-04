@@ -50,6 +50,7 @@ aPackageInfo = [
 		"src/utils/uninstall.ring",
 		"src/utils/shared.ring",
 		"src/utils/shell.ring",
+		"tools/setup-env.ring",
 
 		# Hello example
 		"examples/hello/ring2apk.ring",
