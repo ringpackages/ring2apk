@@ -18,6 +18,16 @@ aPackageInfo = [
 			:name = "ringcurl",
 			:version = "1.0.18",
 			:providerusername = "ringpackages"
+		],
+		[
+			:name = "ring-html",
+			:version = "1.0.5",
+			:providerusername = "ysdragon"
+		],
+		[
+			:name = "archive",
+			:version = "1.0.2",
+			:providerusername = "ysdragon"
 		]
 	],
 	:files = 	[
