@@ -409,11 +409,22 @@ func compareVersions cV1, cV2
 
 # Find platform path
 func findPlatform cSdkPath, cApiLevel
+    if isNumber(cApiLevel)
+        cApiLevel = sdkVersionString(cApiLevel)
+    ok
     cPlatformsDir = cSdkPath + pathSeparator() + "platforms"
     cPlatformPath = cPlatformsDir + pathSeparator() + "android-" + cApiLevel
 
     if dirExists(cPlatformPath)
         return cPlatformPath
+    ok
+
+    # Bare major with no exact dir
+    if subStr(cApiLevel, ".") = 0
+        cBasePath = cPlatformsDir + pathSeparator() + "android-" + cApiLevel + ".0"
+        if dirExists(cBasePath)
+            return cBasePath
+        ok
     ok
 
     return ""

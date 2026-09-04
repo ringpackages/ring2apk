@@ -110,7 +110,11 @@ func loadConfig cConfigFile
     # Canonicalize SDK versions once
     aConfig[:minSdk] = sdkVersionString(aConfig[:minSdk])
     aConfig[:targetSdk] = sdkVersionString(aConfig[:targetSdk])
-    aConfig[:compileSdk] = sdkVersionString(aConfig[:compileSdk])
+    if isString(aConfig[:compileSdk])
+        aConfig[:compileSdk] = trim(aConfig[:compileSdk])
+    else
+        aConfig[:compileSdk] = sdkVersionString(aConfig[:compileSdk])
+    ok
 
     return aConfig
 
